@@ -7,6 +7,7 @@ and evaluation. Mocking is used for the OpenAI API calls to ensure tests are
 fast, reliable, and do not incur actual API costs.
 """
 
+import shutil
 import unittest
 import json
 import os
@@ -28,10 +29,12 @@ class TestReviewDelightExtractor(unittest.TestCase):
         This includes creating dummy input files (reviews.json, evaluation.csv)
         and defining paths for output files.
         """
-        self.test_reviews_file = "test/test_reviews.json"
-        self.test_output_json_file = "test/output/test_output_reviews.json"
-        self.test_output_csv_file = "test/output/test_ranked_attributes.csv"
-        self.test_evaluation_file = "test/test_evaluation.csv"
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        self.test_reviews_file = os.path.join(self.base_dir, ".temp\\test_reviews.json")
+        self.test_output_json_file = os.path.join(self.base_dir, ".temp\\output\\test_output_reviews.json")
+        self.test_output_csv_file = os.path.join(self.base_dir, ".temp\\output\\test_ranked_attributes.csv")
+        self.test_evaluation_file = os.path.join(self.base_dir, ".temp\\test_evaluation.csv")
         # Use a dummy key for testing purposes; actual API calls are mocked.
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "sk-test-key")
 
@@ -77,16 +80,12 @@ class TestReviewDelightExtractor(unittest.TestCase):
         Clean up test environment after each test method.
         This removes all temporary files created during the test run.
         """
-        # List of files to clean up.
-        files_to_remove = [
-            self.test_reviews_file,
-            self.test_output_json_file,
-            self.test_output_csv_file,
-            self.test_evaluation_file,
-        ]
-        for file_path in files_to_remove:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+        # Remove the temporary files created during the tests.
+        # Remove .temp directory if it exists.
+        temp_dir = os.path.join(self.base_dir, ".temp")
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+            
 
     @patch("review_delight_extractor.OpenAI")
     def test_process_reviews(self, mock_openai):

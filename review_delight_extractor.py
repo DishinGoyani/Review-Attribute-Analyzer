@@ -338,10 +338,10 @@ class ReviewDelightExtractor:
         }
 
         # Iterate through the evaluation dataset to compare expected vs. extracted attributes.
-        for index, row in eval_df.iterrows():
+        for _, row in eval_df.iterrows():
             review_id = row.get("review_id")
             # Ensure expected_attributes is a list, handling potential NaN from CSV.
-            expected_attributes_raw = str(row.get("expected_attributes", "")).strip()
+            expected_attributes_raw = str(row.get("delight_attribute", "")).strip()
             expected_attributes = [
                 attr.strip()
                 for attr in expected_attributes_raw.split(",")

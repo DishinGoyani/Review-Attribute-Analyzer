@@ -56,7 +56,7 @@ def main():
     # If an evaluation file is provided, resolve its path
     evaluate_file_path = None
     if args.evaluate_file:
-        evaluate_file_path = os.path.join(base_dir, args.evaluate_file)
+        evaluate_file_path = os.path.join(base_dir, "data", args.evaluate_file)
 
     # Validate that the reviews file exists.
     if not os.path.isfile(reviews_file_path):
@@ -73,6 +73,17 @@ def main():
     if output_json_dir and not os.path.exists(output_json_dir):
         os.makedirs(output_json_dir, exist_ok=True)
 
+    # Validate evaluation file existence before processing
+    # Ask the user for Y/N if they want to skip evaluation if the file is not found.
+    if args.evaluate_file and not os.path.isfile(evaluate_file_path):
+        user_input = input(f"Warning: Evaluation file not found at {evaluate_file_path}. \n"
+                           "Do you want to skip evaluation and continue? (Y/N): ")
+        if user_input.strip().upper() == "Y":
+            evaluate_file_path = None
+        else:
+            print("Exiting the program as evaluation file is required.")
+            return
+
     # Initialize the extractor with the provided API key.
     extractor = ReviewDelightExtractor(openai_api_key=args.openai_api_key)
 
@@ -84,13 +95,10 @@ def main():
     print("--- Review Processing Completed ---")
 
     # Run evaluation if an evaluation file is provided.
-    if args.evaluate_file:
+    if evaluate_file_path:
         print("\n--- Starting Evaluation ---")
         # Validate evaluation file existence before passing to extractor
-        if not os.path.isfile(evaluate_file_path):
-            print(f"Error: Evaluation file not found at {evaluate_file_path}. Skipping evaluation.")
-        else:
-            extractor.evaluate(args.evaluate_file, output_json_file_path)
+        extractor.evaluate(evaluate_file_path, output_json_file_path)
         print("--- Evaluation Completed ---")
 
 
