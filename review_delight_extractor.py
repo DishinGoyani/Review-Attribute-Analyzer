@@ -22,6 +22,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from openai import OpenAI, OpenAIError
 import concurrent.futures
+from tqdm import tqdm
+
 
 class ReviewDelightExtractor:
     """
@@ -129,35 +131,36 @@ class ReviewDelightExtractor:
             int: The optimal number of clusters.
         """
         n_samples = X.shape[0]
-        
+
         # Handle edge cases
         if n_samples <= 1:
             return 1
         if n_samples <= 3:
             return 2
-        
+
         # Calculate reasonable range
         max_clusters = min(int(np.sqrt(n_samples)) + 3, 15, n_samples - 1)
-        
+
         # Calculate WCSS for each k
         wcss = []
         for k in range(1, max_clusters + 1):
             kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
             kmeans.fit(X)
             wcss.append(kmeans.inertia_)
-        
+
         # Find elbow using simple percentage drop method
         for i in range(1, len(wcss) - 1):
             # Calculate percentage improvement from previous k
-            improvement = (wcss[i-1] - wcss[i]) / wcss[i-1] * 100
-            
+            improvement = (wcss[i - 1] - wcss[i]) / wcss[i - 1] * 100
+
             # If improvement drops below 15%, we found our elbow
             if improvement < 15:
                 return max(i, 2)  # Return k value (i+1-1 because range starts at 1)
-        
+
         # Fallback: return middle value
         return max(2, len(wcss) // 2 + 1)
-    def cluster_attributes(self, attributes: list[str]) -> list[str]:
+
+    def cluster_attributes(self, attributes: list[str]) -> list[tuple[str, int]]:
         """
         Clusters a list of attributes and returns a list of representative attributes.
 
@@ -169,7 +172,7 @@ class ReviewDelightExtractor:
             attributes (list[str]): A list of attributes to be clustered.
 
         Returns:
-            list[str]: A list of representative attributes after clustering and deduplication.
+            list[tuple[str, int]]: A list of representative attributes after clustering and deduplication.
         """
         if not attributes:
             return []
@@ -203,7 +206,8 @@ class ReviewDelightExtractor:
             if attrs_in_cluster:
                 # Use pandas Series.value_counts() to find the most frequent item.
                 most_frequent_attr = pd.Series(attrs_in_cluster).value_counts().index[0]
-                representative_attributes.append(most_frequent_attr)
+                cluster_len = len(attrs_in_cluster)
+                representative_attributes.append((most_frequent_attr, cluster_len))
 
         return representative_attributes
 
@@ -242,11 +246,16 @@ class ReviewDelightExtractor:
             # Store futures along with their original review objects.
             future_to_review = {
                 executor.submit(self.extract_attributes, review.get("body")): review
-                for review in reviews_data if review.get("body")
+                for review in reviews_data
+                if review.get("body")
             }
 
             # As tasks complete, collect results and update review objects.
-            for future in concurrent.futures.as_completed(future_to_review):
+            for future in tqdm(
+                concurrent.futures.as_completed(future_to_review),
+                total=len(future_to_review),
+                desc="Extracting attributes",
+            ):
                 original_review = future_to_review[future]
                 try:
                     extracted_attributes = future.result()
@@ -278,12 +287,14 @@ class ReviewDelightExtractor:
             all_extracted_attributes
         )
 
-        # Count frequencies of the representative attributes.
         # This creates a DataFrame with 'Delight Attribute' and 'Frequency' columns.
-        attribute_frequencies = (
-            pd.Series(clustered_and_ranked_attributes).value_counts().reset_index()
+        attribute_frequencies = pd.DataFrame(
+            clustered_and_ranked_attributes, columns=["Delight Attribute", "Frequency"]
         )
-        attribute_frequencies.columns = ["Delight Attribute", "Frequency"]
+        # Sort the DataFrame by frequency in descending order.
+        attribute_frequencies = attribute_frequencies.sort_values(
+            by="Frequency", ascending=False
+        )
 
         # Save the ranked attributes to a CSV file.
         try:
