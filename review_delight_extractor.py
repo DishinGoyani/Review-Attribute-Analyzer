@@ -13,7 +13,6 @@ Usage:
         [--openai_api_key <your_openai_api_key>]
 """
 
-import argparse
 import json
 import os
 import numpy as np
@@ -385,71 +384,3 @@ class ReviewDelightExtractor:
         print(f"Number of correct attribute extractions: {correct_extractions}")
         print(f"Number of incorrect attribute extractions: {incorrect_extractions}")
         print(f"Overall accuracy percentage: {accuracy:.2f}%")
-
-
-def main():
-    """
-    Main function to parse command-line arguments and run the Review Delight Extractor.
-    """
-    parser = argparse.ArgumentParser(
-        description="Review Delight Point Extractor CLI Tool"
-    )
-    parser.add_argument(
-        "--reviews_file",
-        type=str,
-        required=True,
-        help="Path to the input JSON file containing customer reviews.",
-    )
-    parser.add_argument(
-        "--output_json_file",
-        type=str,
-        default="output/output_reviews.json",
-        help="Path to the output JSON file for processed reviews.",
-    )
-    parser.add_argument(
-        "--output_csv_file",
-        type=str,
-        default="output/ranked_attributes.csv",
-        help="Path to the output CSV file for ranked attributes.",
-    )
-    parser.add_argument(
-        "--evaluate_file",
-        type=str,
-        help="Path to the evaluation CSV file. If provided, the tool will run an evaluation.",
-    )
-    parser.add_argument(
-        "--openai_api_key",
-        type=str,
-        help="Your OpenAI API key. Can also be set via the OPENAI_API_KEY environment variable.",
-    )
-
-    args = parser.parse_args()
-
-    # Validate that the reviews file exists.
-    if not os.path.isfile(args.reviews_file):
-        print(f"Error: Reviews file not found at {args.reviews_file}")
-        return
-
-    output_dir = os.path.dirname(args.output_csv_file)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-
-    output_json_dir = os.path.dirname(args.output_json_file)
-    if output_json_dir and not os.path.exists(output_json_dir):
-        os.makedirs(output_json_dir, exist_ok=True)
-
-    # Initialize the extractor with the provided API key.
-    extractor = ReviewDelightExtractor(openai_api_key=args.openai_api_key)
-
-    # Process the reviews.
-    extractor.process_reviews(
-        args.reviews_file, args.output_json_file, args.output_csv_file
-    )
-
-    # Run evaluation if an evaluation file is provided.
-    if args.evaluate_file:
-        extractor.evaluate(args.evaluate_file, args.output_json_file)
-
-
-if __name__ == "__main__":
-    main()
